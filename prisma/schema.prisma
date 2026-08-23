@@ -1,0 +1,204 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  themePref    Theme    @default(DARK)
+  createdAt    DateTime @default(now())
+
+  wallets       Wallet[]
+  tags          Tag[]
+  debts         Debt[]
+  savingGoals   SavingGoal[]
+  bills         Bill[]
+  dailyBudgets  DailyBudget[]
+  notifications Notification[]
+  pushSubs      PushSubscription[]
+}
+
+enum Theme {
+  DARK
+  SOFT_COLOR
+}
+
+enum TagKind {
+  INCOME
+  EXPENSE
+}
+
+model Wallet {
+  id        String  @id @default(cuid())
+  userId    String
+  user      User    @relation(fields: [userId], references: [id])
+  name      String
+  balance   Decimal @default(0)
+  isDefault Boolean @default(false)
+  createdAt DateTime @default(now())
+
+  transactions Transaction[]
+  debts        Debt[]
+  savingGoals  SavingGoal[]
+}
+
+model Tag {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  name      String
+  kind      TagKind
+  createdAt DateTime @default(now())
+
+  transactions Transaction[]
+
+  @@unique([userId, name])
+}
+
+enum TransactionType {
+  INCOME
+  EXPENSE
+  TRANSFER
+}
+
+model Transaction {
+  id       String          @id @default(cuid())
+  walletId String
+  wallet   Wallet          @relation(fields: [walletId], references: [id])
+  tagId    String
+  tag      Tag             @relation(fields: [tagId], references: [id])
+  type     TransactionType
+  amount   Decimal
+  note     String?
+  date     DateTime        @default(now())
+  createdAt DateTime       @default(now())
+
+  initialDebt Debt[] @relation("DebtInitial")
+}
+
+enum DebtDirection {
+  I_OWE
+  OWED_TO_ME
+}
+
+enum DebtStatus {
+  UNPAID
+  PARTIAL
+  PAID
+}
+
+model Debt {
+  id                  String        @id @default(cuid())
+  userId              String
+  user                User          @relation(fields: [userId], references: [id])
+  walletId            String
+  wallet              Wallet        @relation(fields: [walletId], references: [id])
+  personName          String
+  direction           DebtDirection
+  amount              Decimal
+  paidAmount          Decimal       @default(0)
+  status              DebtStatus    @default(UNPAID)
+  dueDate             DateTime?
+  initialTransactionId String?
+  initialTransaction  Transaction?  @relation("DebtInitial", fields: [initialTransactionId], references: [id])
+  createdAt           DateTime      @default(now())
+
+  payments DebtPayment[]
+}
+
+model DebtPayment {
+  id     String   @id @default(cuid())
+  debtId String
+  debt   Debt     @relation(fields: [debtId], references: [id])
+  amount Decimal
+  paidAt DateTime @default(now())
+}
+
+model SavingGoal {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id])
+  walletId      String
+  wallet        Wallet   @relation(fields: [walletId], references: [id])
+  title         String
+  targetAmount  Decimal
+  targetDate    DateTime
+  currentAmount Decimal  @default(0)
+  createdAt     DateTime @default(now())
+
+  contributions SavingContribution[]
+}
+
+model SavingContribution {
+  id            String     @id @default(cuid())
+  savingGoalId  String
+  savingGoal    SavingGoal @relation(fields: [savingGoalId], references: [id])
+  amount        Decimal
+  contributedAt DateTime   @default(now())
+}
+
+model Bill {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  title     String
+  amount    Decimal
+  dueDate   DateTime
+  isPaid    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  reminders BillReminder[]
+}
+
+model BillReminder {
+  id      String  @id @default(cuid())
+  billId  String
+  bill    Bill    @relation(fields: [billId], references: [id])
+  remindAt DateTime
+  isSent  Boolean @default(false)
+}
+
+model DailyBudget {
+  id           String          @id @default(cuid())
+  userId       String
+  user         User            @relation(fields: [userId], references: [id])
+  tagName      String?
+  type         TransactionType
+  targetAmount Decimal
+  isActive     Boolean         @default(true)
+  createdAt    DateTime        @default(now())
+}
+
+enum NotificationType {
+  BILL_REMINDER
+  BUDGET_OVER
+  BUDGET_UNDER
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id])
+  type      NotificationType
+  title     String
+  message   String
+  isRead    Boolean          @default(false)
+  createdAt DateTime         @default(now())
+}
+
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+}
