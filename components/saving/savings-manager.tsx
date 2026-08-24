@@ -71,6 +71,7 @@ export function SavingsManager({
   const [walletId, setWalletId] = useState(wallets[0]?.id ?? "");
   const [amount, setAmount] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
   const run = useActionRunner();
 
   function closeAll() {
@@ -86,42 +87,61 @@ export function SavingsManager({
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    const res = await run(() =>
-      createSavingGoal(title, Number(targetAmount), targetDate, walletId)
-    );
-    if (!res || !res.ok) return setError(res?.error ?? "Gagal");
-    closeAll();
-    router.refresh();
+    setBusy(true);
+    try {
+      const res = await run(() =>
+        createSavingGoal(title, Number(targetAmount), targetDate, walletId)
+      );
+      if (!res || !res.ok)
+        return setError(res?.error ?? "Gagal membuat target tabungan");
+      closeAll();
+      router.refresh();
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function handleContribute(e: React.FormEvent) {
     e.preventDefault();
     if (!contributeTarget) return;
     setError(null);
-    const res = await run(() => contribute(contributeTarget.id, Number(amount)));
-    if (!res || !res.ok) return setError(res?.error ?? "Gagal");
-    closeAll();
-    router.refresh();
+    setBusy(true);
+    try {
+      const res = await run(() =>
+        contribute(contributeTarget.id, Number(amount))
+      );
+      if (!res || !res.ok)
+        return setError(res?.error ?? "Gagal menambah kontribusi");
+      closeAll();
+      router.refresh();
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function handleDelete(g: SavingGoalItem) {
-    const first = await run(() => deleteSavingGoal(g.id, false));
-    if (!first || (first.ok !== true && first.error !== "CONFIRM_NEEDED")) {
-      window.alert(first?.error ?? "Gagal menghapus");
-      return;
-    }
-    if (!first.ok) {
-      const sure = window.confirm(
-        `Hapus "${g.title}" beserta ${g.contributions.length} kontribusi? Saldo wallet tidak dikembalikan.`
-      );
-      if (!sure) return;
-      const res = await run(() => deleteSavingGoal(g.id, true));
-      if (!res || !res.ok) {
-        window.alert(res?.error ?? "Gagal menghapus");
+    setBusy(true);
+    try {
+      const first = await run(() => deleteSavingGoal(g.id, false));
+      if (!first || (first.ok !== true && first.error !== "CONFIRM_NEEDED")) {
+        window.alert(first?.error ?? "Gagal menghapus target tabungan");
         return;
       }
+      if (!first.ok) {
+        const sure = window.confirm(
+          `Hapus "${g.title}" beserta ${g.contributions.length} kontribusi? Saldo wallet tidak dikembalikan.`
+        );
+        if (!sure) return;
+        const res = await run(() => deleteSavingGoal(g.id, true));
+        if (!res || !res.ok) {
+          window.alert(res?.error ?? "Gagal menghapus target tabungan");
+          return;
+        }
+      }
+      router.refresh();
+    } finally {
+      setBusy(false);
     }
-    router.refresh();
   }
 
   const inputClass =
@@ -279,7 +299,7 @@ export function SavingsManager({
                 )}
                 <button
                   type="submit"
-                 
+                  disabled={busy}
                   className="rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-background disabled:opacity-60"
                 >
                   Simpan
@@ -305,7 +325,7 @@ export function SavingsManager({
                   )}
                   <button
                     type="submit"
-                   
+                    disabled={busy}
                     className="rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-background disabled:opacity-60"
                   >
                     Konfirmasi

@@ -43,7 +43,7 @@ export function TransactionList({
     if (!window.confirm("Hapus transaksi ini? Saldo akan disesuaikan.")) return;
     const res = await run(() => deleteTransaction(id));
     if (!res || !res.ok) {
-      window.alert(res?.error ?? "Gagal menghapus");
+      window.alert(res?.error ?? "Gagal menghapus transaksi");
       return;
     }
     router.refresh();

@@ -11,6 +11,7 @@ export function AmountInput({
   placeholder = "0",
   className = "",
   disabled = false,
+  autoFocus = false,
 }: {
   value: string;
   onChange: (digits: string) => void;
@@ -18,6 +19,7 @@ export function AmountInput({
   placeholder?: string;
   className?: string;
   disabled?: boolean;
+  autoFocus?: boolean;
 }) {
   const digits = sanitize(value);
   const display = digits ? Number(digits).toLocaleString("id-ID") : "";
@@ -33,6 +35,7 @@ export function AmountInput({
         inputMode="numeric"
         autoComplete="off"
         disabled={disabled}
+        autoFocus={autoFocus}
         value={display}
         placeholder={placeholder}
         onChange={(e) => onChange(sanitize(e.target.value))}

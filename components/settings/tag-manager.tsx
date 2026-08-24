@@ -34,7 +34,7 @@ export function TagManager({ tags }: { tags: TagItem[] }) {
     return actionRun(async () => {
       const res = await fn();
       if (!res.ok) {
-        setError(res.error ?? "Gagal");
+        setError(res.error ?? "Gagal menyimpan tag");
         return res;
       }
       router.refresh();

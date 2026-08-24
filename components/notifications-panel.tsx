@@ -29,15 +29,27 @@ export function NotificationsPanel({
 }) {
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
+  const [markError, setMarkError] = useState<string | null>(null);
   const router = useRouter();
 
   function toggle() {
     const next = !open;
     setOpen(next);
     if (next && unreadCount > 0 && !pending) {
+      setMarkError(null);
       startTransition(async () => {
-        await fetch("/api/notifications/read-all", { method: "POST" });
-        router.refresh();
+        try {
+          const res = await fetch("/api/notifications/read-all", {
+            method: "POST",
+          });
+          if (!res.ok) {
+            setMarkError("Gagal menandai notifikasi dibaca");
+            return;
+          }
+          router.refresh();
+        } catch {
+          setMarkError("Tidak bisa menghubungi server");
+        }
       });
     }
   }
@@ -63,6 +75,14 @@ export function NotificationsPanel({
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
           <div className="absolute right-0 z-50 mt-2 w-80 rounded-xl border border-line bg-surface p-2 shadow-lg">
             <p className="px-3 py-2 text-sm font-semibold">Notifikasi</p>
+            {markError && (
+              <p
+                role="alert"
+                className="mx-2 mb-1 rounded-lg bg-expense/10 px-3 py-2 text-xs text-expense"
+              >
+                {markError}
+              </p>
+            )}
             {items.length === 0 ? (
               <p className="px-3 py-6 text-center text-sm text-secondary">
                 Belum ada notifikasi

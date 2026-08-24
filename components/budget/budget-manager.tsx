@@ -54,10 +54,14 @@ export function BudgetManager({
 }) {
   const router = useRouter();
   const [addOpen, setAddOpen] = useState(false);
+  const [editTarget, setEditTarget] = useState<BudgetRuleItem | null>(null);
   const [kind, setKind] = useState<BudgetKind>("expense");
   const [tagName, setTagName] = useState(tags[0] ?? "");
   const [targetAmount, setTargetAmount] = useState("");
+  const [editAmount, setEditAmount] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [editError, setEditError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const run = useActionRunner();
 
   async function handleAdd(e: React.FormEvent) {
@@ -70,36 +74,58 @@ export function BudgetManager({
         Number(targetAmount)
       )
     );
-    if (!res || !res.ok) return setError(res?.error ?? "Gagal");
+    if (!res || !res.ok)
+      return setError(res?.error ?? "Gagal membuat aturan budget");
     setAddOpen(false);
     setTargetAmount("");
     router.refresh();
   }
 
+  function openEdit(r: BudgetRuleItem) {
+    setEditTarget(r);
+    setEditAmount(String(r.targetAmount));
+    setEditError(null);
+  }
+
+  function closeEdit() {
+    setEditTarget(null);
+    setEditError(null);
+  }
+
+  async function handleEditSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editTarget) return;
+    setEditError(null);
+    const val = Number(editAmount.trim());
+    if (!Number.isInteger(val) || val <= 0) {
+      setEditError("Nominal harus bilangan bulat lebih dari 0");
+      return;
+    }
+    const res = await run(() =>
+      updateBudget(editTarget.id, val, editTarget.isActive)
+    );
+    if (!res || !res.ok) {
+      setEditError(res?.error ?? "Gagal memperbarui target nominal");
+      return;
+    }
+    closeEdit();
+    router.refresh();
+  }
+
   async function handleToggle(id: string, isActive: boolean, targetAmount: number) {
+    setActionError(null);
     const res = await run(() => updateBudget(id, targetAmount, !isActive));
-    if (!res || !res.ok) window.alert(res?.error ?? "Gagal");
+    if (!res || !res.ok)
+      setActionError(res?.error ?? "Gagal mengubah status aturan budget");
     else router.refresh();
   }
 
   async function handleDelete(id: string) {
+    setActionError(null);
     if (!window.confirm("Hapus aturan budget ini?")) return;
     const res = await run(() => deleteBudget(id));
-    if (!res || !res.ok) window.alert(res?.error ?? "Gagal");
-    else router.refresh();
-  }
-
-  async function handleEditAmount(id: string, current: number) {
-    const input = window.prompt("Target nominal baru:", String(current));
-    if (input === null) return;
-    const val = Number(input.trim());
-    if (!Number.isInteger(val) || val <= 0) {
-      window.alert("Nominal harus bilangan bulat positif");
-      return;
-    }
-    const rule = rules.find((r) => r.id === id);
-    const res = await run(() => updateBudget(id, val, rule?.isActive ?? true));
-    if (!res || !res.ok) window.alert(res?.error ?? "Gagal");
+    if (!res || !res.ok)
+      setActionError(res?.error ?? "Gagal menghapus aturan budget");
     else router.refresh();
   }
 
@@ -119,6 +145,15 @@ export function BudgetManager({
         <Plus className="h-4 w-4" /> Aturan
       </button>
 
+      {actionError && (
+        <p
+          role="alert"
+          className="mt-3 rounded-lg bg-expense/10 px-3 py-2 text-sm text-expense"
+        >
+          {actionError}
+        </p>
+      )}
+
       <div className="mt-5 grid gap-4 lg:grid-cols-2">
         <div className="rounded-xl border border-line bg-surface p-5">
           <h3 className="text-sm font-semibold">Aturan Aktif</h3>
@@ -137,7 +172,7 @@ export function BudgetManager({
                   <p className="truncate text-sm">{ruleLabel(r)}</p>
                   <button
                     type="button"
-                    onClick={() => handleEditAmount(r.id, r.targetAmount)}
+                    onClick={() => openEdit(r)}
                     className="tabular-nums text-xs font-semibold text-accent underline-offset-2 hover:underline"
                   >
                     {formatIDR(r.targetAmount)}
@@ -273,6 +308,51 @@ export function BudgetManager({
                 type="submit"
                 disabled={kind === "expense" && tags.length === 0}
                 className="rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-background disabled:opacity-60"
+              >
+                Simpan
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {editTarget && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 sm:items-center">
+          <div className="w-full max-w-sm rounded-t-xl border border-line bg-surface p-6 sm:rounded-xl">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-base font-semibold">Ubah Target Nominal</h2>
+              <button
+                type="button"
+                onClick={closeEdit}
+                aria-label="Tutup"
+                className="text-secondary hover:text-primary"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleEditSubmit} className="flex flex-col gap-3">
+              <p className="truncate text-sm text-secondary">
+                {ruleLabel(editTarget)}
+              </p>
+              <AmountInput
+                autoFocus
+                value={editAmount}
+                onChange={setEditAmount}
+                placeholder="Nominal target per hari"
+                className={inputClass}
+              />
+              {editError && (
+                <p
+                  role="alert"
+                  className="rounded-lg bg-expense/10 px-3 py-2 text-sm text-expense"
+                >
+                  {editError}
+                </p>
+              )}
+              <button
+                type="submit"
+                className="rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-background transition-opacity hover:opacity-90"
               >
                 Simpan
               </button>

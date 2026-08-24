@@ -32,8 +32,12 @@ export function AuthForm({ mode }: { mode: Mode }) {
           setError(data.error ?? "Terjadi kesalahan, coba lagi");
           return;
         }
-        router.replace("/dashboard");
-        router.refresh();
+        if (mode === "register") {
+          router.replace("/login");
+        } else {
+          router.replace("/dashboard");
+          router.refresh();
+        }
       } catch {
         setError("Tidak bisa menghubungi server");
       }

@@ -89,7 +89,7 @@ export default function LandingPage() {
             visualisasi tren dan pengingat otomatis.
           </p>
           <div className="mt-8 flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
-            <Link
+            <Link 
               href="/register"
               className="rounded-lg bg-accent px-6 py-3 text-sm font-semibold text-background transition-opacity hover:opacity-90"
             >

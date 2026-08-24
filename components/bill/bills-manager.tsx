@@ -49,6 +49,7 @@ export function BillsManager({ bills }: { bills: BillItem[] }) {
   const [dueDate, setDueDate] = useState("");
   const [reminders, setReminders] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
   const run = useActionRunner();
 
   function closeAll() {
@@ -77,27 +78,44 @@ export function BillsManager({ bills }: { bills: BillItem[] }) {
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    const res = await run(() =>
-      editTarget
-        ? updateBill(editTarget.id, title, Number(amount), dueDate, reminders)
-        : createBill(title, Number(amount), dueDate, reminders)
-    );
-    if (!res || !res.ok) return setError(res?.error ?? "Gagal");
-    closeAll();
-    router.refresh();
+    setBusy(true);
+    try {
+      const res = await run(() =>
+        editTarget
+          ? updateBill(editTarget.id, title, Number(amount), dueDate, reminders)
+          : createBill(title, Number(amount), dueDate, reminders)
+      );
+      if (!res || !res.ok)
+        return setError(res?.error ?? "Gagal menyimpan tagihan");
+      closeAll();
+      router.refresh();
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function handleMarkPaid(id: string) {
-    const res = await run(() => markBillPaid(id));
-    if (!res || !res.ok) window.alert(res?.error ?? "Gagal");
-    else router.refresh();
+    setBusy(true);
+    try {
+      const res = await run(() => markBillPaid(id));
+      if (!res || !res.ok)
+        window.alert(res?.error ?? "Gagal menandai tagihan lunas");
+      else router.refresh();
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function handleDelete(id: string) {
     if (!window.confirm("Hapus tagihan ini?")) return;
-    const res = await run(() => deleteBill(id));
-    if (!res || !res.ok) window.alert(res?.error ?? "Gagal");
-    else router.refresh();
+    setBusy(true);
+    try {
+      const res = await run(() => deleteBill(id));
+      if (!res || !res.ok) window.alert(res?.error ?? "Gagal menghapus tagihan");
+      else router.refresh();
+    } finally {
+      setBusy(false);
+    }
   }
 
   const inputClass =
@@ -288,7 +306,7 @@ export function BillsManager({ bills }: { bills: BillItem[] }) {
               )}
               <button
                 type="submit"
-               
+                disabled={busy}
                 className="rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-background disabled:opacity-60"
               >
                 Simpan

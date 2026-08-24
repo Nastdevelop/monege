@@ -8,16 +8,26 @@ import {
 } from "@/lib/auth";
 
 const loginSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(1),
+  email: z
+    .string()
+    .min(1, "Email wajib diisi")
+    .email("Format email tidak valid"),
+  password: z.string().min(1, "Password wajib diisi"),
 });
+
+function firstValidationMessage(error: z.ZodError): string {
+  return error.issues[0]?.message ?? "Data tidak valid";
+}
 
 export async function POST(request: Request) {
   const body = await request.json().catch(() => null);
+  if (!body || typeof body !== "object") {
+    return NextResponse.json({ error: "Data tidak valid" }, { status: 400 });
+  }
   const parsed = loginSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json(
-      { error: "Data tidak valid" },
+      { error: firstValidationMessage(parsed.error) },
       { status: 400 }
     );
   }

@@ -25,7 +25,7 @@ interface TrendPoint {
 
 async function fetchTrend(range: string): Promise<TrendPoint[]> {
   const res = await fetch(`/api/chart/trend?range=${range}`);
-  if (!res.ok) throw new Error("Gagal memuat data");
+  if (!res.ok) throw new Error(`Gagal memuat data grafik (${res.status})`);
   const data = await res.json();
   return data.points as TrendPoint[];
 }
@@ -45,7 +45,7 @@ export function ChartCard({
   title: string;
 }) {
   const [range, setRange] = useState<string>("30");
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["trend", range],
     queryFn: () => fetchTrend(range),
     select: (points: TrendPoint[]) =>
@@ -86,6 +86,17 @@ export function ChartCard({
         {isLoading ? (
           <div className="flex h-full items-center justify-center text-sm text-secondary">
             Memuat...
+          </div>
+        ) : isError ? (
+          <div className="flex h-full flex-col items-center justify-center gap-2 text-sm text-secondary">
+            <p>Gagal memuat data grafik.</p>
+            <button
+              type="button"
+              onClick={() => refetch()}
+              className="rounded-lg border border-line px-3 py-1 text-xs font-semibold transition-colors hover:border-accent hover:text-accent"
+            >
+              Coba Lagi
+            </button>
           </div>
         ) : (
           <ResponsiveContainer width="100%" height="100%">

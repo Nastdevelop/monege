@@ -21,6 +21,19 @@ export function useActionRunner() {
 
 const MIN_VISIBLE_MS = 500;
 
+function describeActionError(err: unknown): string {
+  if (err instanceof TypeError) {
+    return "Tidak bisa menghubungi server. Periksa koneksi internet lalu coba lagi.";
+  }
+  if (err instanceof Error) {
+    if (err.message === "UNAUTHORIZED") {
+      return "Sesi login berakhir. Muat ulang halaman untuk masuk kembali.";
+    }
+    return "Terjadi kesalahan di server saat memproses data. Coba lagi beberapa saat.";
+  }
+  return "Terjadi kesalahan tak terduga. Coba lagi.";
+}
+
 export function ActionOverlayProvider({
   children,
 }: {
@@ -28,13 +41,19 @@ export function ActionOverlayProvider({
 }) {
   const [busyCount, setBusyCount] = useState(0);
 
-  const run = useCallback<Runner>(async (fn) => {
+  const run = useCallback(async <T,>(
+    fn: () => Promise<T>
+  ): Promise<T | undefined> => {
     setBusyCount((c) => c + 1);
     const startedAt = Date.now();
     try {
       return await fn();
-    } catch {
-      return undefined;
+    } catch (err) {
+      console.error("[monege] aksi gagal:", err);
+      return {
+        ok: false,
+        error: describeActionError(err),
+      } as unknown as T;
     } finally {
       const elapsed = Date.now() - startedAt;
       const wait = Math.max(0, MIN_VISIBLE_MS - elapsed);

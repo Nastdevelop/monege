@@ -33,6 +33,7 @@ export function WalletManager({ wallets }: { wallets: WalletItem[] }) {
   const [transferTo, setTransferTo] = useState("");
   const [transferAmount, setTransferAmount] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
   const run = useActionRunner();
 
   function openAdd() {
@@ -64,10 +65,16 @@ export function WalletManager({ wallets }: { wallets: WalletItem[] }) {
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    const res = await run(() => createWallet(name, Number(balance) || 0));
-    if (!res || !res.ok) return setError(res?.error ?? "Gagal");
-    close();
-    router.refresh();
+    setBusy(true);
+    try {
+      const res = await run(() => createWallet(name, Number(balance) || 0));
+      if (!res || !res.ok)
+        return setError(res?.error ?? "Gagal menambahkan wallet");
+      close();
+      router.refresh();
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function handleEdit(e: React.FormEvent) {
@@ -75,39 +82,57 @@ export function WalletManager({ wallets }: { wallets: WalletItem[] }) {
     const target = dialog && typeof dialog === "object" ? dialog.edit : null;
     if (!target) return;
     setError(null);
-    const res = await run(() => updateWallet(target.id, name));
-    if (!res || !res.ok) return setError(res?.error ?? "Gagal");
-    close();
-    router.refresh();
+    setBusy(true);
+    try {
+      const res = await run(() => updateWallet(target.id, name));
+      if (!res || !res.ok)
+        return setError(res?.error ?? "Gagal menyimpan perubahan wallet");
+      close();
+      router.refresh();
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function handleDelete(w: WalletItem) {
     setError(null);
-    const first = await run(() => deleteWallet(w.id, false));
-    if (!first || (first.ok !== true && first.error !== "CONFIRM_NEEDED")) {
-      return setError(first?.error ?? "Gagal menghapus");
+    setBusy(true);
+    try {
+      const first = await run(() => deleteWallet(w.id, false));
+      if (!first || (first.ok !== true && first.error !== "CONFIRM_NEEDED")) {
+        return setError(first?.error ?? "Gagal menghapus wallet");
+      }
+      if (!first.ok) {
+        const sure = window.confirm(
+          `Wallet "${w.name}" masih punya saldo/riwayat transaksi. Hapus beserta seluruh riwayatnya? Tindakan ini tidak bisa dibatalkan.`
+        );
+        if (!sure) return;
+        const res = await run(() => deleteWallet(w.id, true));
+        if (!res || !res.ok)
+          return setError(res?.error ?? "Gagal menghapus wallet");
+      }
+      router.refresh();
+      close();
+    } finally {
+      setBusy(false);
     }
-    if (!first.ok) {
-      const sure = window.confirm(
-        `Wallet "${w.name}" masih punya saldo/riwayat transaksi. Hapus beserta seluruh riwayatnya? Tindakan ini tidak bisa dibatalkan.`
-      );
-      if (!sure) return;
-      const res = await run(() => deleteWallet(w.id, true));
-      if (!res || !res.ok) return setError(res?.error ?? "Gagal menghapus");
-    }
-    router.refresh();
-    close();
   }
 
   async function handleTransfer(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    const res = await run(() =>
-      transferBetweenWallets(transferFrom, transferTo, Number(transferAmount))
-    );
-    if (!res || !res.ok) return setError(res?.error ?? "Gagal transfer");
-    close();
-    router.refresh();
+    setBusy(true);
+    try {
+      const res = await run(() =>
+        transferBetweenWallets(transferFrom, transferTo, Number(transferAmount))
+      );
+      if (!res || !res.ok)
+        return setError(res?.error ?? "Gagal melakukan transfer antar wallet");
+      close();
+      router.refresh();
+    } finally {
+      setBusy(false);
+    }
   }
 
   const inputClass =
@@ -235,7 +260,7 @@ export function WalletManager({ wallets }: { wallets: WalletItem[] }) {
                 )}
                 <button
                   type="submit"
-                 
+                  disabled={busy}
                   className="rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-background disabled:opacity-60"
                 >
                   Simpan
@@ -282,7 +307,7 @@ export function WalletManager({ wallets }: { wallets: WalletItem[] }) {
                 )}
                 <button
                   type="submit"
-                 
+                  disabled={busy}
                   className="rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-background disabled:opacity-60"
                 >
                   Transfer

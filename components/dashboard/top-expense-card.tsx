@@ -19,13 +19,13 @@ interface TopTagData {
 
 async function fetchTopTag(days: number): Promise<TopTagData> {
   const res = await fetch(`/api/report/top-tag?days=${days}`);
-  if (!res.ok) throw new Error("Gagal memuat");
+  if (!res.ok) throw new Error(`Gagal memuat laporan (${res.status})`);
   return res.json();
 }
 
 export function TopExpenseCard() {
   const [days, setDays] = useState<number>(1);
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["top-tag", days],
     queryFn: () => fetchTopTag(days),
   });
@@ -61,6 +61,17 @@ export function TopExpenseCard() {
 
       {isLoading ? (
         <p className="mt-4 text-sm text-secondary">Memuat...</p>
+      ) : isError ? (
+        <div className="mt-4 flex flex-col items-start gap-2 text-sm text-secondary">
+          <p>Gagal memuat laporan pengeluaran.</p>
+          <button
+            type="button"
+            onClick={() => refetch()}
+            className="rounded-lg border border-line px-3 py-1 text-xs font-semibold transition-colors hover:border-accent hover:text-accent"
+          >
+            Coba Lagi
+          </button>
+        </div>
       ) : !data || !data.tagName ? (
         <p className="mt-4 text-sm text-secondary">
           Belum ada pengeluaran pada periode ini.

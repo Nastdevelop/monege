@@ -51,12 +51,16 @@ export function PushSettings() {
     try {
       const permission = await Notification.requestPermission();
       if (permission !== "granted") {
-        setStatus("Izin notifikasi ditolak di browser.");
+        setStatus("Izin notifikasi ditolak. Aktifkan izin notifikasi untuk situs ini di pengaturan browser.");
         return;
       }
       const res = await fetch("/api/push/public-key");
       if (!res.ok) {
-        setStatus("Server belum siap mengirim push.");
+        setStatus(
+          res.status === 503
+            ? "Server belum dikonfigurasi untuk push (kunci VAPID kosong)."
+            : `Gagal mengambil kunci push dari server (${res.status}).`
+        );
         return;
       }
       const { publicKey } = await res.json();
@@ -67,16 +71,22 @@ export function PushSettings() {
         applicationServerKey: urlBase64ToUint8Array(publicKey),
       });
       const json = sub.toJSON();
-      await fetch("/api/push/subscribe", {
+      const saveRes = await fetch("/api/push/subscribe", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(json),
       });
+      if (!saveRes.ok) {
+        setStatus(
+          `Berhasil berlangganan di browser, tapi server gagal menyimpannya (${saveRes.status}). Coba lagi.`
+        );
+        return;
+      }
       setSubscribed(true);
       setStatus("Notifikasi aktif.");
       startTransition(() => router.refresh());
     } catch {
-      setStatus("Gagal mengaktifkan notifikasi.");
+      setStatus("Gagal mengaktifkan notifikasi. Pastikan browser mendukung dan tidak memblokir push.");
     }
   }
 
@@ -86,17 +96,22 @@ export function PushSettings() {
       const reg = await navigator.serviceWorker.getRegistration();
       const sub = await reg?.pushManager.getSubscription();
       if (sub) {
-        await fetch("/api/push/unsubscribe", {
+        const delRes = await fetch("/api/push/unsubscribe", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ endpoint: sub.endpoint }),
         });
+        if (!delRes.ok) {
+          setStatus(
+            `Server gagal menghapus langganan (${delRes.status}). Langganan lokal dimatikan saja.`
+          );
+        }
         await sub.unsubscribe();
       }
       setSubscribed(false);
       setStatus("Notifikasi dimatikan.");
     } catch {
-      setStatus("Gagal mematikan notifikasi.");
+      setStatus("Gagal mematikan notifikasi. Muat ulang halaman lalu coba lagi.");
     }
   }
 

@@ -133,7 +133,7 @@ export function TransactionFormDialog({
         : createTransaction(payload)
     );
     if (!res || !res.ok) {
-      setError(res?.error ?? "Gagal menyimpan");
+      setError(res?.error ?? "Gagal menyimpan transaksi");
       return;
     }
     reset();

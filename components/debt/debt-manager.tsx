@@ -48,6 +48,7 @@ export function DebtManager({
   const [isNew, setIsNew] = useState(true);
   const [payAmount, setPayAmount] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
   const run = useActionRunner();
 
   function closeAll() {
@@ -63,34 +64,58 @@ export function DebtManager({
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    const res = await run(() =>
-      createDebt(person, tab, walletId, Number(amount), dueDate || undefined, isNew)
-    );
-    if (!res || !res.ok) return setError(res?.error ?? "Gagal");
-    closeAll();
-    router.refresh();
+    setBusy(true);
+    try {
+      const res = await run(() =>
+        createDebt(
+          person,
+          tab,
+          walletId,
+          Number(amount),
+          dueDate || undefined,
+          isNew
+        )
+      );
+      if (!res || !res.ok)
+        return setError(res?.error ?? "Gagal mencatat utang/piutang");
+      closeAll();
+      router.refresh();
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function handlePay(e: React.FormEvent) {
     e.preventDefault();
     if (!payTarget) return;
     setError(null);
-    const res = await run(() => payDebt(payTarget.id, Number(payAmount)));
-    if (!res || !res.ok) return setError(res?.error ?? "Gagal");
-    const paidOff = res.paidOff === true;
-    closeAll();
-    router.refresh();
-    if (paidOff) setPaidOffTarget(payTarget);
+    setBusy(true);
+    try {
+      const res = await run(() => payDebt(payTarget.id, Number(payAmount)));
+      if (!res || !res.ok)
+        return setError(res?.error ?? "Gagal menyimpan pembayaran");
+      const paidOff = res.paidOff === true;
+      closeAll();
+      router.refresh();
+      if (paidOff) setPaidOffTarget(payTarget);
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function handleDelete(d: DebtItem) {
-    const res = await run(() => deleteDebt(d.id));
-    if (!res || !res.ok) {
-      window.alert(res?.error ?? "Gagal menghapus");
-      return;
+    setBusy(true);
+    try {
+      const res = await run(() => deleteDebt(d.id));
+      if (!res || !res.ok) {
+        window.alert(res?.error ?? "Gagal menghapus data utang/piutang");
+        return;
+      }
+      setPaidOffTarget(null);
+      router.refresh();
+    } finally {
+      setBusy(false);
     }
-    setPaidOffTarget(null);
-    router.refresh();
   }
 
   const inputClass =
@@ -346,7 +371,7 @@ export function DebtManager({
                 )}
                 <button
                   type="submit"
-                 
+                  disabled={busy}
                   className="rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-background disabled:opacity-60"
                 >
                   Simpan
@@ -374,7 +399,7 @@ export function DebtManager({
                   )}
                   <button
                     type="submit"
-                   
+                    disabled={busy}
                     className="rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-background disabled:opacity-60"
                   >
                     Konfirmasi
@@ -409,7 +434,7 @@ export function DebtManager({
               <button
                 type="button"
                 onClick={() => handleDelete(paidOffTarget)}
-               
+                disabled={busy}
                 className="flex-1 rounded-lg bg-expense px-4 py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-60"
               >
                 Hapus
