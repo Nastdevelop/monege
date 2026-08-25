@@ -9,6 +9,7 @@ import {
   type ActionResult,
 } from "./helpers";
 import { isValidAmount, LIMITS, SAVING_TAG } from "@/lib/constants";
+import { parseDateWIB, startOfToday } from "@/lib/format";
 
 export async function createSavingGoal(
   title: string,
@@ -22,11 +23,9 @@ export async function createSavingGoal(
     return fail(`Judul target ${LIMITS.title.min}-${LIMITS.title.max} karakter`);
   if (!isValidAmount(targetAmount)) return fail("Nominal target tidak valid");
 
-  const date = new Date(targetDate);
+  const date = parseDateWIB(targetDate);
   if (Number.isNaN(date.getTime())) return fail("Tanggal target tidak valid");
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  if (date.getTime() <= today.getTime())
+  if (date.getTime() <= startOfToday().getTime())
     return fail("Tanggal target harus di masa depan");
 
   const wallet = await prisma.wallet.findFirst({

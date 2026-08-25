@@ -1,7 +1,12 @@
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/auth";
-import { formatIDR } from "@/lib/format";
+import {
+  formatIDR,
+  dateKeyWIB,
+  parseDateWIB,
+  endOfDateWIB,
+} from "@/lib/format";
 import { TransactionList } from "@/components/transaction/transaction-list";
 import { TopExpenseCard } from "@/components/dashboard/top-expense-card";
 
@@ -33,9 +38,7 @@ export default async function ReportsPage({
     (k) => typeof sp[k] === "string" && sp[k] !== ""
   );
 
-  const todayISO = new Date();
-  todayISO.setMinutes(todayISO.getMinutes() - todayISO.getTimezoneOffset());
-  const todayStr = todayISO.toISOString().slice(0, 10);
+  const todayStr = dateKeyWIB(new Date());
 
   const filters: Filters = {
     tagId: one("tagId"),
@@ -67,9 +70,9 @@ export default async function ReportsPage({
       ? {
           date: {
             ...(filters.from
-              ? { gte: new Date(`${filters.from}T00:00:00`) }
+              ? { gte: parseDateWIB(filters.from) }
               : {}),
-            ...(filters.to ? { lte: new Date(`${filters.to}T23:59:59`) } : {}),
+            ...(filters.to ? { lte: endOfDateWIB(filters.to) } : {}),
           },
         }
       : {}),

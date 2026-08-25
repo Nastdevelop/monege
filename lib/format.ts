@@ -22,16 +22,30 @@ export function formatDateTimeID(date: Date | string): string {
   });
 }
 
+const WIB_OFFSET_MS = 7 * 60 * 60 * 1000;
+const DAY_MS = 86_400_000;
+
 export function startOfToday(): Date {
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  return d;
+  return new Date(
+    Math.floor((Date.now() + WIB_OFFSET_MS) / DAY_MS) * DAY_MS - WIB_OFFSET_MS
+  );
 }
 
 export function endOfToday(): Date {
-  const d = new Date();
-  d.setHours(23, 59, 59, 999);
-  return d;
+  return new Date(startOfToday().getTime() + DAY_MS - 1);
+}
+
+export function parseDateWIB(iso: string): Date {
+  const [y, m, d] = iso.slice(0, 10).split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d) - WIB_OFFSET_MS);
+}
+
+export function endOfDateWIB(iso: string): Date {
+  return new Date(parseDateWIB(iso).getTime() + DAY_MS - 1);
+}
+
+export function dateKeyWIB(d: Date): string {
+  return new Date(d.getTime() + WIB_OFFSET_MS).toISOString().slice(0, 10);
 }
 
 export function daysBetween(from: Date, to: Date): number {

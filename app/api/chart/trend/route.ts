@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/auth";
+import { startOfToday, dateKeyWIB } from "@/lib/format";
 
 export async function GET(request: Request) {
   const user = await getSessionUser();
@@ -12,9 +13,9 @@ export async function GET(request: Request) {
   const rangeParam = Number(url.searchParams.get("range") ?? 30);
   const rangeDays = [7, 30, 365].includes(rangeParam) ? rangeParam : 30;
 
-  const cutoff = new Date();
-  cutoff.setHours(0, 0, 0, 0);
-  cutoff.setDate(cutoff.getDate() - (rangeDays - 1));
+  const cutoff = new Date(
+    startOfToday().getTime() - (rangeDays - 1) * 86_400_000
+  );
 
   const rows: Array<{ day: Date; type: string; total: unknown }> =
     await prisma.$queryRaw`
@@ -32,18 +33,15 @@ export async function GET(request: Request) {
     `;
 
   const map = new Map<string, { income: number; expense: number }>();
-  const localKey = (d: Date) =>
-    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
-      d.getDate()
-    ).padStart(2, "0")}`;
 
   for (let i = 0; i < rangeDays; i++) {
-    const d = new Date(cutoff);
-    d.setDate(d.getDate() + i);
-    map.set(localKey(d), { income: 0, expense: 0 });
+    map.set(dateKeyWIB(new Date(cutoff.getTime() + i * 86_400_000)), {
+      income: 0,
+      expense: 0,
+    });
   }
   for (const row of rows) {
-    const key = localKey(new Date(row.day));
+    const key = dateKeyWIB(new Date(row.day));
     const entry = map.get(key);
     if (!entry) continue;
     if (row.type === "INCOME") entry.income = Number(row.total);

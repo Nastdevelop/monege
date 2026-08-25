@@ -9,6 +9,7 @@ import {
   type ActionResult,
 } from "./helpers";
 import { isValidAmount, LIMITS, DEBT_RECEIVED_TAG, LOAN_GIVEN_TAG } from "@/lib/constants";
+import { parseDateWIB } from "@/lib/format";
 
 export async function createDebt(
   personName: string,
@@ -42,7 +43,7 @@ export async function createDebt(
     }
   }
 
-  const due = dueDate ? new Date(dueDate) : null;
+  const due = dueDate ? parseDateWIB(dueDate) : null;
   if (due && Number.isNaN(due.getTime()))
     return fail("Tanggal jatuh tempo tidak valid");
 

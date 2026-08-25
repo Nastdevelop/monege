@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { requireUserId, fail, done, type ActionResult } from "./helpers";
 import { isValidAmount, LIMITS } from "@/lib/constants";
+import { parseDateWIB } from "@/lib/format";
 
 export async function createBill(
   title: string,
@@ -16,7 +17,7 @@ export async function createBill(
     return fail(`Nama tagihan ${LIMITS.title.min}-${LIMITS.title.max} karakter`);
   if (!isValidAmount(amount)) return fail("Nominal tidak valid");
 
-  const due = new Date(dueDate);
+  const due = parseDateWIB(dueDate);
   if (Number.isNaN(due.getTime())) return fail("Tanggal jatuh tempo tidak valid");
 
   await prisma.$transaction(async (tx) => {
@@ -24,7 +25,7 @@ export async function createBill(
       data: { userId, title: trimmed, amount, dueDate: due },
     });
     const validReminders = remindDates
-      .map((d) => new Date(d))
+      .map((d) => parseDateWIB(d))
       .filter((d) => !Number.isNaN(d.getTime()));
     if (validReminders.length > 0) {
       await tx.billReminder.createMany({
@@ -51,14 +52,14 @@ export async function updateBill(
     return fail(`Nama tagihan ${LIMITS.title.min}-${LIMITS.title.max} karakter`);
   if (!isValidAmount(amount)) return fail("Nominal tidak valid");
 
-  const due = new Date(dueDate);
+  const due = parseDateWIB(dueDate);
   if (Number.isNaN(due.getTime())) return fail("Tanggal jatuh tempo tidak valid");
 
   const bill = await prisma.bill.findFirst({ where: { id, userId } });
   if (!bill) return fail("Tagihan tidak ditemukan");
 
   const validReminders = remindDates
-    .map((d) => new Date(d))
+    .map((d) => parseDateWIB(d))
     .filter((d) => !Number.isNaN(d.getTime()));
 
   await prisma.$transaction(async (tx) => {
